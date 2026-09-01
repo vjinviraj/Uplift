@@ -82,3 +82,25 @@ class AuditEvent(SQLModel, table=True):
     razorpay_order_id: str | None = None
     razorpay_payment_id: str | None = None
     payload_json: str
+
+class Order(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    session_id: str
+    amount_paise: int
+    currency: str = "INR"
+    status: str
+    razorpay_order_id: str | None = None
+    idempotency_key: str
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+
+class Payment(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    order_id: int
+    razorpay_payment_id: str
+    status: str
+    method: str
+    verified_at: datetime | None = None
+    failure_reason: str | None = None

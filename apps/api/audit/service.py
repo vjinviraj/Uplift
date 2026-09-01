@@ -16,6 +16,8 @@ def record_audit_event(
     decision: str | None = None,
     reason: str | None = None,
     policy_version: str | None = None,
+    razorpay_order_id: str | None = None,
+    razorpay_payment_id: str | None = None,
     payload: dict | None = None,
 ) -> AuditEvent:
     event = AuditEvent(
@@ -27,6 +29,8 @@ def record_audit_event(
         decision=decision,
         reason=reason,
         policy_version=policy_version,
+        razorpay_order_id=razorpay_order_id,
+        razorpay_payment_id=razorpay_payment_id,
         payload_json=json.dumps(payload or {}),
     )
 
