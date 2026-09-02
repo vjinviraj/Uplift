@@ -83,3 +83,8 @@ reports/
 
 # ---------- Local project files ----------
 *.local
+
+# Temporary files / scripts
+scripts/debug_*.py
+scripts/run_real_retry.py
+scripts/razorpay_checkout_test.html
