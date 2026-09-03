@@ -215,19 +215,100 @@ def test_llm_generated_price_is_not_trusted():
     assert offer.amount_paise == 89900
 
 
-def test_policy_rejection_is_returned_without_bypassing_pricing():
+def test_over_budget_proposal_is_reprompted_and_corrected():
+    """Test that an over-budget proposal gets one corrective attempt."""
     session = make_session()
-    llm = FakeLLM([proposal()])
+    llm = FakeLLM(
+        [
+            proposal(upsell_id="MER-001"),  # ₹2,499 - over budget
+            proposal(upsell_id=None),       # ₹0 - within budget
+        ]
+    )
     agent = MerchantAgent(llm)
 
     offer = agent.propose(
         session=session,
-        request=PurchaseRequest(query="Genshin Impact", budget_paise=50000),
+        request=PurchaseRequest(
+            query="Genshin Impact",
+            budget_paise=100000,  # ₹1,000 budget
+        ),
         policy=make_policy(),
     )
 
-    assert offer.amount_paise == 89900
-    assert offer.policy_decision == "REJECTED"
+    assert offer.product_id == "GAME-001"
+    assert offer.upsell_product_id is None
+    assert offer.amount_paise == 0
+    assert offer.policy_decision == "ALLOWED"
+    assert len(llm.calls) == 2
+    assert "exceeds the buyer budget" in llm.calls[1]["user_prompt"]
+
+
+def test_over_budget_proposal_is_bounded_to_one_reprompt():
+    """Test that only one reprompt is allowed for budget violations."""
+    session = make_session()
+    bad = proposal(upsell_id="MER-001")  # ₹2,499 - over budget
+    llm = FakeLLM([bad, bad, proposal(upsell_id=None)])
+    agent = MerchantAgent(llm)
+
+    with pytest.raises(ValueError, match="after one re-prompt"):
+        agent.propose(
+            session=session,
+            request=PurchaseRequest(
+                query="Genshin Impact",
+                budget_paise=100000,
+            ),
+            policy=make_policy(),
+        )
+
+    assert len(llm.calls) == 2
+    assert len(llm.proposals) == 1
+
+
+def test_llm_context_contains_budget_and_candidate_affordability_data():
+    """Test that the LLM receives budget and affordability information."""
+    session = make_session()
+    llm = FakeLLM([proposal()])
+    agent = MerchantAgent(llm)
+
+    agent.propose(
+        session=session,
+        request=PurchaseRequest(
+            query="Genshin Impact",
+            budget_paise=100000,
+        ),
+        policy=make_policy(),
+    )
+
+    user_prompt = llm.calls[0]["user_prompt"]
+
+    assert '"budget_paise":100000' in user_prompt
+    # Check that the product price appears in the context (the exact format may vary)
+    assert "89900" in user_prompt
+    assert "max_autonomous" in user_prompt
+    assert "basket_total_paise" in user_prompt
+
+
+def test_policy_rejection_is_returned_without_bypassing_pricing():
+    """Test that policy rejection still computes the authoritative price."""
+    session = make_session()
+    # The budget is ₹500, and the keychain is ₹899, so it exceeds budget
+    # Need to provide a corrected proposal (no upsell) after the over-budget one
+    llm = FakeLLM(
+        [
+            proposal(upsell_id="MER-002"),  # ₹899 - over budget
+            proposal(upsell_id=None),       # ₹0 - within budget
+        ]
+    )
+    agent = MerchantAgent(llm)
+
+    offer = agent.propose(
+        session=session,
+        request=PurchaseRequest(query="Genshin Impact", budget_paise=50000),  # ₹500 budget
+        policy=make_policy(),
+    )
+
+    assert offer.amount_paise == 0  # No upsell means ₹0
+    assert offer.policy_decision == "ALLOWED"  # ₹0 is within policy
 
 
 def test_policy_requires_confirmation_propagates():

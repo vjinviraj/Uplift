@@ -12,6 +12,7 @@ from apps.api.razorpay_client.client import get_razorpay_client
 from apps.api.razorpay_client.reconciliation import reconcile_payment
 from apps.api.razorpay_client.service import create_order, record_payment_failure
 from apps.api.razorpay_client.verification import verify_payment_signature
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -23,6 +24,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Uplift API",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["null"],
+    allow_credentials=False,
+    allow_methods=["POST"],
+    allow_headers=["Content-Type"],
 )
 
 
@@ -77,17 +86,25 @@ def verify_test_razorpay_payment(
     request: PaymentVerificationRequest,
     session: Session = Depends(get_session),
 ):
+    print("VERIFY ENDPOINT HIT")
+    print(f"Request: {request}")
+
     order = session.exec(
         select(Order).where(
             Order.razorpay_order_id == request.razorpay_order_id
         )
     ).first()
 
+    print(f"ORDER LOOKUP RESULT: {order}")
+
     if order is None:
         raise HTTPException(
             status_code=404,
             detail="Local order not found",
         )
+
+    print(f"ORDER FOUND: local_id={order.id}, status={order.status}")
+    print(f"ORDER RAZORPAY ID: {order.razorpay_order_id}")
 
     if not order.razorpay_order_id:
         raise HTTPException(
@@ -103,11 +120,15 @@ def verify_test_razorpay_payment(
 
     secret = os.getenv("RAZORPAY_KEY_SECRET")
 
+    print(f"SECRET LOADED: {bool(secret)}")
+
     if not secret:
         raise HTTPException(
             status_code=500,
             detail="RAZORPAY_KEY_SECRET must be configured",
         )
+
+    print("STARTING SIGNATURE VERIFICATION")
 
     verify_payment_signature(
         order_id=order.razorpay_order_id,
@@ -115,6 +136,8 @@ def verify_test_razorpay_payment(
         signature=request.razorpay_signature,
         secret=secret,
     )
+
+    print("SIGNATURE VERIFIED")
 
     existing_payment = session.exec(
         select(Payment).where(
@@ -134,12 +157,17 @@ def verify_test_razorpay_payment(
         session.add(payment)
         session.commit()
 
+    print("PAYMENT RECORD CREATED/FOUND")
+    print("STARTING RECONCILIATION")
+
     result = reconcile_payment(
         session=session,
         razorpay_client=get_razorpay_client(),
         order=order,
         expected_amount_paise=order.amount_paise,
     )
+
+    print(f"RECONCILIATION RESULT: {result}")
 
     return result
 

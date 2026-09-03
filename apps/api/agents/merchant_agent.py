@@ -139,6 +139,7 @@ class MerchantAgent:
                     proposal,
                     search_output=search_output,
                     session=session,
+                    budget_paise=request.budget_paise,
                 )
             except ValueError as exc:
                 last_error = exc
@@ -155,6 +156,7 @@ class MerchantAgent:
         *,
         search_output: SearchCatalogOutput,
         session: Session,
+        budget_paise: int,
     ) -> MerchantAgentProposal:
         allowed_base_ids = {
             match.product_id for match in search_output.matches
@@ -179,6 +181,26 @@ class MerchantAgent:
                 "Selected upsell must be one of the deterministic mapped candidates"
             )
 
+        # Budget is a hard constraint for proposal selection. Re-price the
+        # proposed basket with the authoritative pricing function before
+        # accepting the LLM proposal. An unaffordable proposal gets one
+        # corrective LLM attempt through the existing bounded re-prompt loop.
+        line_items = [{"product_id": proposal.product_id, "qty": 1}]
+        if proposal.upsell is not None:
+            line_items.append(
+                {"product_id": proposal.upsell.product_id, "qty": 1}
+            )
+
+        price_output = PriceOrderOutput.model_validate(
+            price_order(session, line_items)
+        )
+
+        if price_output.amount_paise > budget_paise:
+            raise ValueError(
+                "Selected basket exceeds the buyer budget: "
+                f"{price_output.amount_paise} > {budget_paise}"
+            )
+
         return proposal
 
     @staticmethod
@@ -187,11 +209,17 @@ class MerchantAgent:
             "You are the merchant-side gaming commerce agent. "
             "Return only the requested structured proposal. "
             "Select the best base product from the supplied catalog options. "
+            "The buyer budget is a HARD constraint: the base product plus any "
+            "selected upsell must fit within that budget. "
+            "Use the supplied prices and basket totals to reason about affordability, "
+            "but never invent or modify prices. "
+            "If no relevant upsell fits within the budget, omit the upsell. "
             "If an upsell is appropriate, select at most one from the supplied "
-            "deterministic compatibility candidates. "
+            "deterministic compatibility candidates. Prefer candidates marked "
+            "max_autonomous=true when they fit the buyer's budget. "
             "Do not invent products, compatibility, prices, discounts, policy "
             "decisions, authorization, or Razorpay actions. "
-            "Prices are computed later by the backend."
+            "The backend will re-price and re-check policy before payment."
         )
 
     @staticmethod
@@ -211,11 +239,18 @@ class MerchantAgent:
                 {
                     "product_id": match.product_id,
                     "name": match.name,
+                    "price_paise": match.price_paise,
+                    "in_stock": match.in_stock,
                     "upsell_candidates": [
                         {
                             "product_id": candidate.product_id,
                             "name": candidate.name,
+                            "price_paise": candidate.price_paise,
                             "reason_code": candidate.reason_code,
+                            "max_autonomous": candidate.max_autonomous,
+                            "basket_total_paise": (
+                                match.price_paise + candidate.price_paise
+                            ),
                         }
                         for candidate in candidate_output.candidates
                     ],
@@ -242,7 +277,12 @@ class MerchantAgent:
 
         return (
             "Choose the best base product for the buyer request and, when relevant, "
-            "choose at most one compatible upsell. The upsell must be one of the "
-            "supplied deterministic candidates. Do not provide price information.\n\n"
+            "choose at most one compatible upsell. "
+            "The buyer budget is a hard constraint. Do not choose a base product "
+            "or base-plus-upsell basket that exceeds it. "
+            "The supplied prices and basket totals are reference data for planning; "
+            "the backend will re-price the final proposal authoritatively. "
+            "The upsell must be one of the supplied deterministic candidates. "
+            "Do not provide or invent prices in the structured response.\n\n"
             f"{context}{correction}"
         )
