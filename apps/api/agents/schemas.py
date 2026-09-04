@@ -38,6 +38,8 @@ class PurchaseOffer(BaseModel):
     policy_reason: str = Field(min_length=1)
     policy_version: str = Field(min_length=1)
 
+
 class PurchaseConfirmation(BaseModel):
     approved: bool
     amount_paise: int = Field(ge=0)
+    extra_confirmation: bool = False

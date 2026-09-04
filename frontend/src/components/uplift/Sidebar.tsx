@@ -1,14 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BarChart3,
-  FileText,
-  Play,
-  Receipt,
-  ShoppingCart,
-} from "lucide-react";
+import { BarChart3, FileText, Play, Receipt, ShoppingCart } from "lucide-react";
 
 const navigation = [
   {
@@ -39,12 +34,17 @@ export function Sidebar() {
   return (
     <aside className="hidden min-h-screen w-[220px] shrink-0 flex-col border-r border-zinc-800 bg-[#0F0F10] md:flex">
       <div className="px-[22px] pb-6 pt-5">
-        <div className="flex items-center gap-2">
-          <div className="h-5 w-5 rounded-md bg-gradient-to-br from-zinc-100 to-zinc-500" />
-
-          <span className="text-base font-bold tracking-[-0.02em] text-zinc-100">
-            UPLIFT
-          </span>
+        <div className="flex items-center">
+          <div className="flex items-center">
+            <Image
+              src="/brand/uplift-logo.png"
+              alt="Uplift"
+              width={120}
+              height={40}
+              className="h-auto w-[100px] sm:w-[120px] md:w-[140px]" // Different sizes per breakpoint
+              priority
+            />
+          </div>
         </div>
       </div>
 
@@ -85,13 +85,19 @@ export function Sidebar() {
           Demo
         </div>
 
-        <button
-          type="button"
-          className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13.5px] font-medium text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
+        <Link
+          href="/scenario"
+          className={[
+            "flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5",
+            "text-[13.5px] font-medium transition-colors",
+            pathname.startsWith("/scenario")
+              ? "bg-[#18181B] text-zinc-100"
+              : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200",
+          ].join(" ")}
         >
           <Play className="h-4 w-4" strokeWidth={1.9} />
           Scenario Selector
-        </button>
+        </Link>
       </div>
 
       <div className="mt-auto px-5 pb-4">

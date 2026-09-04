@@ -43,6 +43,26 @@ class Session(SQLModel, table=True):
     customer_ref: str
 
 
+class PurchaseSessionState(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    request_json: str
+    offer_json: str
+    status: str = "AWAITING_APPROVAL"
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+
+
+class ExperimentObservation(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    session_id: str = Field(index=True)
+    scenario_id: str | None = Field(default=None, index=True)
+    arm: str = Field(index=True)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
 class CartLineItem(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     session_id: str
@@ -104,3 +124,15 @@ class Payment(SQLModel, table=True):
     method: str
     verified_at: datetime | None = None
     failure_reason: str | None = None
+
+class PurchaseApproval(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    session_id: str
+    approved: bool
+    amount_paise: int
+    policy_version: str
+    offer_hash: str
+    extra_confirmation: bool = False
+    confirmed_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )

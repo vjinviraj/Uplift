@@ -37,12 +37,10 @@ def make_offer(
 
 def test_authorizes_allowed_offer_with_exact_buyer_approval():
     offer = make_offer()
-
     confirmation = PurchaseConfirmation(
         approved=True,
         amount_paise=89900,
     )
-
     assert authorize_purchase(
         offer=offer,
         confirmation=confirmation,
@@ -51,12 +49,10 @@ def test_authorizes_allowed_offer_with_exact_buyer_approval():
 
 def test_rejects_when_buyer_does_not_approve():
     offer = make_offer()
-
     confirmation = PurchaseConfirmation(
         approved=False,
         amount_paise=89900,
     )
-
     assert authorize_purchase(
         offer=offer,
         confirmation=confirmation,
@@ -65,12 +61,10 @@ def test_rejects_when_buyer_does_not_approve():
 
 def test_rejects_when_buyer_approves_wrong_amount():
     offer = make_offer(amount_paise=89900)
-
     confirmation = PurchaseConfirmation(
         approved=True,
         amount_paise=79900,
     )
-
     assert authorize_purchase(
         offer=offer,
         confirmation=confirmation,
@@ -79,43 +73,49 @@ def test_rejects_when_buyer_approves_wrong_amount():
 
 def test_rejects_policy_rejected_offer():
     offer = make_offer(policy_decision="REJECTED")
-
     confirmation = PurchaseConfirmation(
         approved=True,
         amount_paise=89900,
     )
-
     assert authorize_purchase(
         offer=offer,
         confirmation=confirmation,
     ) is False
 
 
-def test_allows_requires_confirmation_after_exact_buyer_approval():
+def test_requires_extra_confirmation_for_requires_confirmation_offer():
     offer = make_offer(
         amount_paise=150000,
         policy_decision="REQUIRES_CONFIRMATION",
     )
 
-    confirmation = PurchaseConfirmation(
+    without_extra_confirmation = PurchaseConfirmation(
         approved=True,
         amount_paise=150000,
+        extra_confirmation=False,
     )
-
     assert authorize_purchase(
         offer=offer,
-        confirmation=confirmation,
+        confirmation=without_extra_confirmation,
+    ) is False
+
+    with_extra_confirmation = PurchaseConfirmation(
+        approved=True,
+        amount_paise=150000,
+        extra_confirmation=True,
+    )
+    assert authorize_purchase(
+        offer=offer,
+        confirmation=with_extra_confirmation,
     ) is True
 
 
 def test_requires_exact_amount_even_when_policy_allows():
     offer = make_offer(amount_paise=89900)
-
     confirmation = PurchaseConfirmation(
         approved=True,
         amount_paise=90000,
     )
-
     assert authorize_purchase(
         offer=offer,
         confirmation=confirmation,
@@ -124,12 +124,10 @@ def test_requires_exact_amount_even_when_policy_allows():
 
 def test_unknown_policy_decision_is_rejected():
     offer = make_offer(policy_decision="SOMETHING_ELSE")
-
     confirmation = PurchaseConfirmation(
         approved=True,
         amount_paise=89900,
     )
-
     assert authorize_purchase(
         offer=offer,
         confirmation=confirmation,

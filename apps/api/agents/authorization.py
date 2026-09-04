@@ -1,4 +1,12 @@
+import hashlib
+
 from apps.api.agents.schemas import PurchaseConfirmation, PurchaseOffer
+
+
+def hash_offer(offer: PurchaseOffer) -> str:
+    return hashlib.sha256(
+        offer.model_dump_json().encode("utf-8")
+    ).hexdigest()
 
 
 def authorize_purchase(
@@ -6,8 +14,6 @@ def authorize_purchase(
     offer: PurchaseOffer,
     confirmation: PurchaseConfirmation,
 ) -> bool:
-    """Return True only when merchant policy and buyer approval both pass."""
-
     if offer.policy_decision == "REJECTED":
         return False
 
@@ -18,7 +24,7 @@ def authorize_purchase(
         return False
 
     if offer.policy_decision == "REQUIRES_CONFIRMATION":
-        return True
+        return confirmation.extra_confirmation
 
     if offer.policy_decision == "ALLOWED":
         return True

@@ -1,10 +1,10 @@
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from apps.api.agents.authorization import authorize_purchase
+from apps.api.agents.authorization import authorize_purchase, hash_offer
 from apps.api.agents.buyer import AIBuyer
 from apps.api.agents.merchant_agent import MerchantAgent
 from apps.api.agents.schemas import PurchaseConfirmation, PurchaseOffer, PurchaseRequest
-from apps.api.models import PolicyConfig
+from apps.api.models import PolicyConfig, PurchaseApproval
 from apps.api.razorpay_client.service import create_order
 
 
@@ -70,6 +70,30 @@ class PurchaseWorkflow:
             confirmation=confirmation,
         ):
             raise ValueError("Purchase is not authorized")
+
+        approval = session.exec(
+            select(PurchaseApproval)
+            .where(PurchaseApproval.session_id == session_id)
+            .order_by(PurchaseApproval.id.desc())
+        ).first()
+
+        if approval is None:
+            raise ValueError("Durable buyer approval is required")
+
+        if not approval.approved:
+            raise ValueError("Durable buyer approval is not approved")
+
+        if approval.amount_paise != offer.amount_paise:
+            raise ValueError("Durable approval amount does not match offer")
+
+        if approval.policy_version != offer.policy_version:
+            raise ValueError("Durable approval policy version does not match offer")
+
+        if approval.offer_hash != hash_offer(offer):
+            raise ValueError("Durable approval offer does not match current offer")
+
+        if approval.extra_confirmation != confirmation.extra_confirmation:
+            raise ValueError("Durable approval confirmation does not match")
 
         return create_order(
             session=session,
