@@ -145,7 +145,8 @@ class MerchantAgent:
                 last_error = exc
                 if attempt >= self.MAX_REPROMPTS:
                     raise ValueError(
-                        "Merchant Agent proposal remained invalid after one re-prompt"
+                        "Merchant Agent proposal remained invalid after one re-prompt: "
+                        f"{exc}"
                     ) from exc
 
         raise RuntimeError("Unreachable Merchant Agent retry state")

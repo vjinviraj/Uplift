@@ -1,5 +1,4 @@
 import json
-import os
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
@@ -14,6 +13,7 @@ from apps.api.agents.llm_client import LLMClient
 from apps.api.agents.merchant_agent import MerchantAgent
 from apps.api.agents.schemas import PurchaseConfirmation, PurchaseOffer, PurchaseRequest
 from apps.api.agents.workflow import PurchaseWorkflow
+from apps.api.config import get_setting
 from apps.api.database import create_db_and_tables, get_session
 from apps.api.models import (
     AuditEvent,
@@ -660,7 +660,7 @@ def approve_purchase(
     session.add(snapshot)
     session.commit()
 
-    key_id = os.getenv("RAZORPAY_KEY_ID")
+    key_id = get_setting("RAZORPAY_KEY_ID")
     if not key_id:
         raise HTTPException(status_code=500, detail="RAZORPAY_KEY_ID must be configured")
 
@@ -708,7 +708,7 @@ def verify_purchase_payment(
             message="Payment already reconciled.",
         )
 
-    secret = os.getenv("RAZORPAY_KEY_SECRET")
+    secret = get_setting("RAZORPAY_KEY_SECRET")
     if not secret:
         raise HTTPException(
             status_code=500,
@@ -814,7 +814,7 @@ def retry_purchase(
     retry_count = len(retry_events)
 
     # Check configuration before calling Razorpay.
-    key_id = os.getenv("RAZORPAY_KEY_ID")
+    key_id = get_setting("RAZORPAY_KEY_ID")
     if not key_id:
         raise HTTPException(
             status_code=500,
@@ -875,7 +875,7 @@ def create_test_razorpay_order(
         idempotency_key=idempotency_key,
     )
 
-    key_id = os.getenv("RAZORPAY_KEY_ID")
+    key_id = get_setting("RAZORPAY_KEY_ID")
 
     if not key_id:
         raise RuntimeError("RAZORPAY_KEY_ID must be configured.")
@@ -909,7 +909,7 @@ def verify_test_razorpay_payment(
     if order.status == "PAID":
         raise HTTPException(status_code=409, detail="Order is already paid")
 
-    secret = os.getenv("RAZORPAY_KEY_SECRET")
+    secret = get_setting("RAZORPAY_KEY_SECRET")
     if not secret:
         raise HTTPException(status_code=500, detail="RAZORPAY_KEY_SECRET must be configured")
 

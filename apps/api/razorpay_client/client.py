@@ -1,11 +1,11 @@
-import os
-
 import razorpay
+
+from apps.api.config import get_setting
 
 
 def get_razorpay_client() -> razorpay.Client:
-    key_id = os.getenv("RAZORPAY_KEY_ID")
-    key_secret = os.getenv("RAZORPAY_KEY_SECRET")
+    key_id = get_setting("RAZORPAY_KEY_ID")
+    key_secret = get_setting("RAZORPAY_KEY_SECRET")
 
     if not key_id or not key_secret:
         raise RuntimeError(
