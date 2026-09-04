@@ -74,20 +74,31 @@ function PanelHeader({
   );
 }
 
-function ProductImage({ productId }: { productId: string }) {
+function ProductImage({
+  productId,
+  className = "",
+}: {
+  productId: string;
+  className?: string;
+}) {
   const [failed, setFailed] = useState(false);
 
   return (
-    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-800 bg-[#18181B]">
+    <div
+      className={[
+        "relative flex items-center justify-center overflow-hidden",
+        className,
+      ].join(" ")}
+    >
       {failed ? (
-        <Package className="h-5 w-5 text-zinc-600" strokeWidth={1.6} />
+        <Package className="h-8 w-8 text-zinc-600" strokeWidth={1.5} />
       ) : (
         <Image
           src={productImagePath(productId)}
           alt=""
           fill
-          className="object-cover"
-          sizes="56px"
+          className="object-contain p-4"
+          sizes="(min-width: 768px) 50vw, 100vw"
           onError={() => setFailed(true)}
         />
       )}
@@ -505,74 +516,84 @@ function CheckoutContent() {
                 <PanelHeader
                   icon={<Package className="h-3.5 w-3.5" strokeWidth={1.9} />}
                 >
-                  Product
+                  Product &amp; Upsell
                 </PanelHeader>
 
-                {baseItem ? (
-                  <div className="flex items-center gap-3.5 rounded-[10px] border border-zinc-800 p-3.5">
-                    <ProductImage productId={baseItem.product_id} />
+                <div className="relative">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {baseItem ? (
+                      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-[#111112]">
+                        <div className="relative flex h-[230px] items-center justify-center border-b border-zinc-800 bg-[#171719]">
+                          <ProductImage
+                            productId={baseItem.product_id}
+                            className="h-full w-full"
+                          />
+                          <div className="absolute left-4 top-4 rounded-md border border-zinc-700 bg-[#0F0F10]/90 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-zinc-300">
+                            Base product
+                          </div>
+                        </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-zinc-600">
-                        Base product
+                        <div className="p-4">
+                          <div className="min-h-[44px] text-[15px] font-semibold leading-5 text-zinc-100">
+                            {baseItem.name}
+                          </div>
+                          <div className="mt-3 text-[20px] font-bold tabular-nums text-zinc-50">
+                            {formatMoney(
+                              baseItem.line_total_paise,
+                              offer?.currency,
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    ) : (
+                      <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-zinc-800 text-sm text-zinc-600">
+                        Waiting for backend offer…
+                      </div>
+                    )}
 
-                      <div className="text-[14.5px] font-semibold">
-                        {baseItem.name}
+                    {upsellItem ? (
+                      <div className="overflow-hidden rounded-xl border border-[#3FB950]/25 bg-[#111112]">
+                        <div className="relative flex h-[230px] items-center justify-center border-b border-zinc-800 bg-[#171719]">
+                          <ProductImage
+                            productId={upsellItem.product_id}
+                            className="h-full w-full"
+                          />
+                          <div className="absolute left-4 top-4 rounded-md border border-[#3FB950]/30 bg-[#0F0F10]/90 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-zinc-300">
+                            Suggested upsell
+                          </div>
+                        </div>
+
+                        <div className="p-4">
+                          <div className="min-h-[44px] text-[15px] font-semibold leading-5 text-zinc-100">
+                            {upsellItem.name}
+                          </div>
+                          <div className="mt-1 line-clamp-2 min-h-[32px] text-xs leading-4 text-zinc-500">
+                            {offer?.upsell_reason ??
+                              "Deterministic merchant relationship"}
+                          </div>
+                          <div className="mt-3 text-[20px] font-bold tabular-nums text-zinc-50">
+                            {formatMoney(
+                              upsellItem.line_total_paise,
+                              offer?.currency,
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-zinc-800 text-sm text-zinc-600">
+                        No upsell in this offer.
+                      </div>
+                    )}
+                  </div>
+
+                  {baseItem && upsellItem && (
+                    <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 hidden -translate-x-1/2 -translate-y-1/2 md:flex">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-[#0F0F10] text-sm font-bold text-zinc-300 shadow-lg">
+                        +
                       </div>
                     </div>
-
-                    <div className="text-[15px] font-bold tabular-nums">
-                      {formatMoney(baseItem.line_total_paise, offer?.currency)}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-[10px] border border-zinc-800 p-4 text-sm text-zinc-600">
-                    Waiting for backend offer…
-                  </div>
-                )}
-              </Panel>
-
-              <Panel>
-                <PanelHeader
-                  icon={
-                    <TrendingUp className="h-3.5 w-3.5" strokeWidth={1.9} />
-                  }
-                >
-                  Upsell
-                </PanelHeader>
-
-                {upsellItem ? (
-                  <div className="flex items-center gap-3.5 rounded-[10px] border border-zinc-800 p-3.5">
-                    <ProductImage productId={upsellItem.product_id} />
-
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-zinc-600">
-                        Suggested upsell
-                      </div>
-
-                      <div className="text-[14.5px] font-semibold">
-                        {upsellItem.name}
-                      </div>
-
-                      <div className="mt-0.5 text-xs text-zinc-600">
-                        {offer?.upsell_reason ??
-                          "Deterministic merchant relationship"}
-                      </div>
-                    </div>
-
-                    <div className="text-[15px] font-bold tabular-nums">
-                      {formatMoney(
-                        upsellItem.line_total_paise,
-                        offer?.currency,
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-[10px] border border-zinc-800 p-4 text-sm text-zinc-600">
-                    No upsell in this offer.
-                  </div>
-                )}
+                  )}
+                </div>
               </Panel>
 
               <Panel>
